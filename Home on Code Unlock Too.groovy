@@ -149,10 +149,10 @@ def doorHandler(evt)
                             }
                         }
                         else {
-                        	def doorMsg = "Unidentified Code (${i}) used to unlock ${lock1.displayName})"
+                        	def doorMsg = "Unidentified Code (${i}) used to unlock ${lock1.displayName}), not running \"${homePhrase}\""
                             if (autoLock) {
                             	lock1.lock()
-                                doorMsg = doorMsg + ", auto-locking"
+                                doorMsg = doorMsg + " and auto-locking"
                             }
                             sendNotificationEvent( doorMsg )
                         }
