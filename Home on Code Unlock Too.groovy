@@ -141,12 +141,10 @@ def doorHandler(evt)
                         }
 						if (foundUser != "") { 								// ...
 		        			log.debug "${lock1.displayName} unlocked with code ${data.usedCode} - ${foundUser} is Home!"
-							if (location.mode != "Home") {  					// Only if we aren't already in Home mode
-    	    					sendNotificationEvent("Running \"${homePhrase}\" because ${foundUser} unlocked ${lock1.displayName}.")
-                            	state.unlockSetHome = true						// do this first, in case I'm Back unlocks the door too
-                                state.lastUser = foundUser
-								location.helloHome.execute(settings.homePhrase)	// Wake up the house - we're HOME!!!
-                            }
+    	    				sendNotificationEvent("Running \"${homePhrase}\" because ${foundUser} unlocked ${lock1.displayName}.")
+                            state.unlockSetHome = true						// do this first, in case I'm Back unlocks the door too
+                            state.lastUser = foundUser
+							location.helloHome.execute(settings.homePhrase)	// Wake up the house - we're HOME!!!
                         }
                         else {
                         	def doorMsg = "Unidentified Code (${i}) used to unlock ${lock1.displayName}), not running \"${homePhrase}\""
