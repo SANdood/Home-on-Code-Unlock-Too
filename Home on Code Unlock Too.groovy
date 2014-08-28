@@ -2,6 +2,10 @@
  *  Home Mode on Code Unlock Too
  *
  *  Copyright 2014 Barry A. Burke
+ * 
+ *  Changelog
+ *		2014/08/28		Added keyed unlock support, optionally with separate Hello Home! action
+ *						Don't run Hello Home! Actions if any specified people are present (fix presence handling also)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -18,9 +22,9 @@ definition(
     namespace: "smartthings",
     author: "Barry A. Burke",
     description: "Change Hello, Home! mode when door is unlocked with a code. Optionally identify the person, send distress message, and/or return to Away mode on departure.",
-    category: "Safety & Security",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png"
+    category: "Mode Magic",
+    iconUrl: "https://s3.amazonaws.com/smartapp-icons/ModeMagic/Cat-ModeMagic.png",
+    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/ModeMagic/Cat-ModeMagic@2x.png"
 )
 
 import groovy.json.JsonSlurper
@@ -39,13 +43,22 @@ def setupApp() {
         section("How many User Names (1-30)?") {
         	input name: "maxUserNames", title: "# of users", type: "number", required: true, multiple: false,  refreshAfterSelection: true
         }
+        section("Don't run Actions of any of these are present:") {
+        	input "presence1", "capability.presenceSensor", title: "Who?", multiple: true, required: false
+        }
         
       	section("Controls") {
-        	input name: "anonymousAllowed", title: "Allow Unidentified Users?", type: "bool", defaultValue: false, refreshAfterSelection: true
-         	input name: "autoLock", title: "Auto-lock Unidentified Users?", type: "bool", defaultValue: false
-         	input name: "enableDistressCode", title: "Enable Distress Code?", type: "bool", defaultValue: false, refreshAfterSelection: true
+        	input name: "anonymousAllowed", title: "Allow Unspecified Code IDs?", type: "bool", defaultValue: false, refreshAfterSelection: true
+         	input name: "autoLock", title: "Auto-lock Unspecified Code IDs?", type: "bool", defaultValue: false
+            input name: "manualUnlock", title: "Change Mode on Manual/Keyed Unlock also?", type: "bool", defaultValue: false, refreshAfterSelection: true
+            if (manualUnlock) {
+            	input name: "manualUnlockException", title: "Use separate Hello Home action for Manual/Keyed Unlock?", type: "bool", defaultValue: false, refreshAfterSelection: true
+			}
+        }
+        section("Distress Alerts") {
+			input name: "enableDistressCode", title: "Enable Distress Code?", type: "bool", defaultValue: false, refreshAfterSelection: true
             if (enableDistressCode) {
-            	input name: "distressCode", title: "Distress code (1-${maxUserNames})", type: "number", defaultValue: 0, multiple: false, refreshAfterSelection: true
+            	input name: "distressCode", title: "Distress Code ID# (1-${maxUserNames})", type: "number", defaultValue: 0, multiple: false, refreshAfterSelection: true
 				if ((distressCode > 0) && (distressCode <= maxUserNames)) {
     				input name: "phone1", type: "phone", title: "Phone number to send message to"
                 	input name: "notifyAlso", type: "bool", title: "Send ST Notification also?", defaultValue: false
@@ -53,17 +66,16 @@ def setupApp() {
                 }
             }
 		} 
-           
-        section("Return to away if none of these are present") {
-        	input "presence1", "capability.presenceSensor", title: "Who?", multiple: true, required: false
-        }
             
     	def phrases = location.helloHome?.getPhrases()*.label
     	if (phrases) {
        		phrases.sort()
 			section("Hello Home actions...") {
-				input "homePhrase", "enum", title: "Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection:true
-            	input "awayPhrase", "enum", title: "Away Mode Phrase", defaultValue: "Goodbye!", required: true, options: phrases, refreshAfterSelection:true
+				input "homePhrase", "enum", title: "Coded Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection:true
+                if (manualUnlockException) {
+                	input "manualPhrase", "enum", title: "Manual/Keyed Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection:true
+                }
+				input "awayPhrase", "enum", title: "Away Mode Phrase", defaultValue: "Goodbye!", required: true, options: phrases, refreshAfterSelection:true
         	}        
 		}
         section([mobileOnly:true]) {
@@ -80,10 +92,10 @@ def usersPage() {
         	for (int i = 1; i <= settings.maxUserNames; i++) {
             	def priorName = settings."userNames${i}"
             	if (priorName) {
-                	input name: "userNames${i}", description: "${priorName}", title: "Code #$i Name", defaultValue: "${priorName}", type: string, multiple: false, required: false
+                	input name: "userNames${i}", description: "${priorName}", title: "Code ID#$i Name", defaultValue: "${priorName}", type: string, multiple: false, required: false
 				}
                 else {
-					input name: "userNames${i}", description: "Tap to set", title: "Code #$i Name", type: string, multiple: false, required: false
+					input name: "userNames${i}", description: "Tap to set", title: "Code ID#$i Name", type: string, multiple: false, required: false
                 }
             }
         }       
@@ -106,69 +118,134 @@ def updated() {
 def initialize()
 {
     log.debug "Settings: ${settings}"
-//    subscribe(lock1, "lock", doorHandler, [filterEvents: false])
-	subscribe(presence1, "presence", presence)
+//	subscribe(presence1, "presence", presence)
     subscribe(lock1, "lock", doorHandler)
-    state.unlockSetHome = false
     state.lastUser = ""
 }
 
 
 def doorHandler(evt)
 {
-    log.debug "The ${lock1.displayName} lock is ${lock1.latestValue("lock")}."
+    log.debug "The ${lock1.displayName} lock is ${lock1.latestValue('lock')}"
+	def data = []
 
 	if (evt.name == "lock") {
     	if (evt.value == "unlocked") {
-	    	if ((evt.data != "") && (evt.data != null)) {					// ...and only if we have extended data
-	    		def data = new JsonSlurper().parseText(evt.data) 
-            	if ((data.usedCode != "") && (data.usedCode != null)) {		// ...and only iuf we have usedCode data
-					if (enableDistressCode) {
-						if(data.usedCode == distressCode) {
-        					log.info "Distress Message Sent"
-        					sendSms(phone1, distressMsg)
-                    		if ( notifyAlso ) { sendNotificationEvent( distressMsg ) }
-        				}
+            
+            def isManual = false
+	    	if ((evt.data == "") || (evt.data == null)) {  				// No extended data, must be a manual/keyed unlock
+            	isManual = true
+            }
+            else {														// We have extended data, should be a coded unlock           	
+	    		data = new JsonSlurper().parseText(evt.data) 
+            	if ((data.usedCode == "") || (data.usedCode == null)) {	// If no usedCode data, treat as manual unlock
+                	log.debug "Unknown extended data (${data}), treating as manual unlock"
+                	isManual = true
+           		 }
+            }
+            
+            if (isManual) {           	
+                if (manualUnlock) { 									// We're supposed to handle manual/keyed unlocks also
+                	      
+             		if (anyoneIsHome() ) {
+                		log.debug "Manual/keyed unlock but Someone is already present, no Action taken"
+                		return
+            		}
+                    
+                    if (manualUnlockException) {
+                    	log.debug "${lock1.displayName} was manually unlocked - Someone is Home!"
+    	    			sendNotificationEvent("Running \"${settings.manualPhrase}\" because ${lock1.displayName} was manually unlocked by someone.")
+						location.helloHome.execute(settings.manualPhrase)
                     }
-	        		if (!state.unlockSetHome) { 										// only if we aren't already unlocked
-						Integer i = data.usedCode as Integer
-                        log.debug "Unlocked with code ${i}"
-                        def foundUser = ""
-                        def userName = settings."userNames${i}"
-                        if (userName != null) { foundUser = userName }
-                        if ((foundUser == "") && settings.anonymousAllowed) { 
-                        	foundUser = "Unidentified Person" 
-                        }
-						if (foundUser != "") { 								// ...
-		        			log.debug "${lock1.displayName} unlocked with code ${data.usedCode} - ${foundUser} is Home!"
-    	    				sendNotificationEvent("Running \"${homePhrase}\" because ${foundUser} unlocked ${lock1.displayName}.")
-                            state.unlockSetHome = true						// do this first, in case I'm Back unlocks the door too
-                            state.lastUser = foundUser
-							location.helloHome.execute(settings.homePhrase)	// Wake up the house - we're HOME!!!
-                        }
-                        else {
-                        	def doorMsg = "Unidentified Code (${i}) used to unlock ${lock1.displayName}), not running \"${homePhrase}\""
-                            if (autoLock) {
-                            	lock1.lock()
-                                doorMsg = doorMsg + " and auto-locking"
-                            }
-                            sendNotificationEvent( doorMsg )
-                        }
+                    else {
+                    	log.debug "${lock1.displayName} was manually unlocked - Someone is Home!"
+    	    			sendNotificationEvent("Running \"${settings.homePhrase}\" because ${lock1.displayName} was manually unlocked by someone.")
+						location.helloHome.execute(settings.homePhrase)
                     }
+                    state.lastUser = "Someone"
+				}
+         	}
+            else {														// Wasn't manual and we have a usedCode		         
+				if (enableDistressCode) {	
+					if(data.usedCode == distressCode) {
+        				log.info "Distress Message Sent"
+       					sendSms(phone1, distressMsg)
+                   		if ( notifyAlso ) { sendNotificationEvent( distressMsg ) }
+       				}
                 }
+                
+				Integer i = data.usedCode as Integer
+                log.debug "Unlocked with code ${i}"
+                
+                def foundUser = ""
+                def userName = settings."userNames${i}"
+                if (userName != null) { foundUser = userName }
+                if ((foundUser == "") && settings.anonymousAllowed) { 
+                  	foundUser = "Unspecified Person" 
+                }
+				
+                if (foundUser != "") {
+                	if (anyoneIsHome() ) {
+                		log.debug "Unlocked with code ${data.usedCode} - ${foundUser} is Home but Someone is already present, no Action taken"
+                		return
+            		}
+                    
+		        	log.debug "Unlocked with code ${data.usedCode} - ${foundUser} is Home!"
+    	    		sendNotificationEvent("Running \"${settings.homePhrase}\" because ${foundUser} unlocked ${lock1.displayName}.")
+                    state.lastUser = foundUser
+					location.helloHome.execute(settings.homePhrase)	// Wake up the house - we're HOME!!!
+                }
+                else {
+                	if (anyoneIsHome() ) {
+                		log.debug "Unlocked by Unspecified Person (Code ID#${data.usedCode}, but Someone is already present, no Action taken"
+                		return
+            		}
+                    
+                   	def doorMsg = "Unlocked by Unspecified Person (Code ID#${data.usedCode}), not running \"${homePhrase}\""
+                    if (autoLock) {
+                        lock1.lock()
+                        doorMsg = doorMsg + " and auto-locking"
+                    }
+                    sendNotificationEvent( doorMsg )
+                }
+
             }
         }
         else if (evt.value == "locked") {
-        	if (state.unlockSetHome) {							// Should assure that only this instance runs Goodbye!
-            	if (presence1.find{it.currentPresence == "present"} == null) {
-            		if (location.mode != "Away") {
-                		sendNotificationEvent("Running \"${awayPhrase}\" because ${state.lastUser} locked ${lock1.displayName} and nobody else is at home.")
-                    	state.unlockSetHome = false								// do this first, in case Goodbye! action locks the door too.
-                    	state.lastUser = ""
-                        location.helloHome.execute(settings.awayPhrase)
-                    }
-                }
+        	if (anyoneIsHome() ) { 
+            	log.debug "Someone is already present, no Action taken"
+                return 
             }
+            
+            sendNotificationEvent("Running \"${settings.awayPhrase}\" because ${state.lastUser} locked ${lock1.displayName} and nobody else is at home.")
+            state.lastUser = ""
+            location.helloHome.execute(settings.awayPhrase)
+        }
+        else if (evt.value == "unknown") {
+        	// Happens in testing sometimes - let's just try locking it again
+            if (anyoneIsHome() ) {
+            	log.debug "Event 'unknown', Someone is already present, no Action taken"
+            	return
+            }
+            
+            log.debug "Event 'unknown', attempting lock()"
+            settings.lock1.lock()
+        }
+        else {
+        
+        	log.debug "Unknown event value: ${evt.value}"
         }
     }
+}
+
+private anyoneIsHome() {    
+	def result = false
+
+	if(presence1.findAll { it?.currentPresence == "present" }) {
+    	result = true
+  	}
+
+  	log.debug("anyoneIsHome: ${result}")
+
+  result
 }
