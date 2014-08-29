@@ -118,9 +118,9 @@ def updated() {
 def initialize()
 {
     log.debug "Settings: ${settings}"
-//	subscribe(presence1, "presence", presence)
     subscribe(lock1, "lock", doorHandler)
     state.lastUser = ""
+    state.lastLockStatus = lock1.latestValue('lock')
 }
 
 
@@ -130,7 +130,10 @@ def doorHandler(evt)
 	def data = []
 
 	if (evt.name == "lock") {
+    
     	if (evt.value == "unlocked") {
+        
+        	state.lastLockStatus = "unlocked"
             
             def isManual = false
 	    	if ((evt.data == "") || (evt.data == null)) {  				// No extended data, must be a manual/keyed unlock
@@ -148,7 +151,7 @@ def doorHandler(evt)
                 if (manualUnlock) { 									// We're supposed to handle manual/keyed unlocks also
                 	      
              		if (anyoneIsHome() ) {
-                		log.debug "Manual/keyed unlock but Someone is already present, no Action taken"
+                		log.debug "Manual/keyed unlock but someone is already present, no Action taken"
                 		return
             		}
                     
@@ -165,7 +168,8 @@ def doorHandler(evt)
                     state.lastUser = "Someone"
 				}
          	}
-            else {														// Wasn't manual and we have a usedCode		         
+            else {														// Wasn't manual and we have a usedCode	
+            
 				if (enableDistressCode) {	
 					if(data.usedCode == distressCode) {
         				log.info "Distress Message Sent"
@@ -179,25 +183,27 @@ def doorHandler(evt)
                 
                 def foundUser = ""
                 def userName = settings."userNames${i}"
+                
                 if (userName != null) { foundUser = userName }
+                
                 if ((foundUser == "") && settings.anonymousAllowed) { 
                   	foundUser = "Unspecified Person" 
                 }
 				
                 if (foundUser != "") {
                 	if (anyoneIsHome() ) {
-                		log.debug "Unlocked with code ${data.usedCode} - ${foundUser} is Home but Someone is already present, no Action taken"
+                		log.debug "Unlocked with code ${data.usedCode} - ${foundUser} is Home but someone is already present, no Action taken"
                 		return
             		}
                     
 		        	log.debug "Unlocked with code ${data.usedCode} - ${foundUser} is Home!"
     	    		sendNotificationEvent("Running \"${settings.homePhrase}\" because ${foundUser} unlocked ${lock1.displayName}.")
                     state.lastUser = foundUser
-					location.helloHome.execute(settings.homePhrase)	// Wake up the house - we're HOME!!!
+					location.helloHome.execute(settings.homePhrase)			// Wake up the house - we're HOME!!!
                 }
                 else {
                 	if (anyoneIsHome() ) {
-                		log.debug "Unlocked by Unspecified Person (Code ID#${data.usedCode}, but Someone is already present, no Action taken"
+                		log.debug "Unlocked by Unspecified Person (Code ID#${data.usedCode}, but someone is already present, no Action taken"
                 		return
             		}
                     
@@ -212,6 +218,8 @@ def doorHandler(evt)
             }
         }
         else if (evt.value == "locked") {
+        
+        	state.lastLockStatus = "locked"
         	if (anyoneIsHome() ) { 
             	log.debug "Someone is already present, no Action taken"
                 return 
@@ -221,15 +229,17 @@ def doorHandler(evt)
             state.lastUser = ""
             location.helloHome.execute(settings.awayPhrase)
         }
-        else if (evt.value == "unknown") {
-        	// Happens in testing sometimes - let's just try locking it again
-            if (anyoneIsHome() ) {
-            	log.debug "Event 'unknown', Someone is already present, no Action taken"
-            	return
+        else if (evt.value == "unknown") {						// Happens in testing sometimes
+            if (state.lastLockStatus == "locked" ) {			// "probably" was a Keyed unlock attempt
+            	state.lastLockStatus = "jammed"					// so we don't get stuck in a loop doing this
+            	log.debug "Lock jammed, attempting to unlock"
+                settings.lock1.unlock()
             }
-            
-            log.debug "Event 'unknown', attempting lock()"
-            settings.lock1.lock()
+            else {
+            	state.lastLockStatus = "partial"
+            	log.debug "Partially locked, attempting to re-lock"
+                settings.lock1.lock()
+            }
         }
         else {
         
