@@ -6,6 +6,7 @@
  *  Changelog
  *		2014/08/28		Added keyed unlock support, optionally with separate Hello Home! action
  *						Don't run Hello Home! Actions if any specified people are present (fix presence handling also)
+ *		2014/08/31		Fixed a typo, added options to send distress/Mayday via SMS, Push and/or NotificationEvent
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -43,7 +44,7 @@ def setupApp() {
         section("How many User Names (1-30)?") {
         	input name: "maxUserNames", title: "# of users", type: "number", required: true, multiple: false,  refreshAfterSelection: true
         }
-        section("Don't run Actions of any of these are present:") {
+        section("Don't run Actions if any of these are present:") {
         	input "presence1", "capability.presenceSensor", title: "Who?", multiple: true, required: false
         }
         
@@ -60,7 +61,11 @@ def setupApp() {
             if (enableDistressCode) {
             	input name: "distressCode", title: "Distress Code ID# (1-${maxUserNames})", type: "number", defaultValue: 0, multiple: false, refreshAfterSelection: true
 				if ((distressCode > 0) && (distressCode <= maxUserNames)) {
-    				input name: "phone1", type: "phone", title: "Phone number to send message to"
+                	input name: "smsMayday", type: "bool", title: "Send distress message via SMS?", defaultValue: false, refreshAfterSelection: true
+                    if (smsMayday) {
+    					input name: "phone1", type: "phone", title: "Phone number to send message to", required: true
+                    }
+                    input name: "pushMayday", type: "bool", title: "Push notification to ST mobile devices?", defaultValue: false
                 	input name: "notifyAlso", type: "bool", title: "Send ST Notification also?", defaultValue: false
     				input name: "distressMsg", type: "string", title: "Message to send", defaultValue: "Mayday! at ${location.name} - ${lock1.displayName}"
                 }
@@ -170,16 +175,17 @@ def doorHandler(evt)
          	}
             else {														// Wasn't manual and we have a usedCode	
             
-				if (enableDistressCode) {	
-					if(data.usedCode == distressCode) {
-        				log.info "Distress Message Sent"
-       					sendSms(phone1, distressMsg)
-                   		if ( notifyAlso ) { sendNotificationEvent( distressMsg ) }
-       				}
-                }
-                
-				Integer i = data.usedCode as Integer
+            	Integer i = data.usedCode as Integer
                 log.debug "Unlocked with code ${i}"
+                
+				if (enableDistressCode) {	
+					if(i == distressCode) {
+        				log.info "Sending Mayday message(s)"
+                        if (smsMayday) { sendSms(phone1, distressMsg) }
+                        if (pushMayday) { sendPush(distressMsg) }                    
+                   		if (notifyAlso) { sendNotificationEvent(distressMsg) }
+                    }
+                }
                 
                 def foundUser = ""
                 def userName = settings."userNames${i}"
