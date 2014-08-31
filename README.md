@@ -5,7 +5,7 @@ SmartThings Hello Home automation for Z-Wave Locks
 
 DESCRIPTION
 ===========
-This SmartApp was developed to enable changing the Hello Home mode when someone uses a code or the key to unlock aZ-Wave Lock. It supports a variety of related features and options:
+This SmartApp was developed to enable changing the Hello Home mode when someone uses a code or the key to unlock a Z-Wave Lock. It supports a variety of related features and options:
 
 * Display a name/identifier for each code ID#, allowing you to know who opened the door (e.g., Cleaning Company)
 * Run your selection of Hello Home Actions when the door is unlocked (e.g., "I'm Back!"), disabling your alarms (for example)
