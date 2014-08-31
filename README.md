@@ -9,7 +9,7 @@ This SmartApp was developed to enable changing the Hello Home mode when someone 
 
 * Display a name/identifier for each code ID#, allowing you to know who opened the door (e.g., Cleaning Company)
 * Run your selection of Hello Home Actions when the door is unlocked (e.g., "I'm Back!"), disabling your alarms (for example)
-  * Note - some locks report the unlock events they happen, others may be a bit delayed.
+  * Note - some locks report the unlock events as they happen (Schlage?), others may be a bit delayed (Kwikset?).
 * Optionally run Hello Home actions for coded entries for which you have NOT provided name/identifiers
   * Optionally, auto-lock the door for Unspecified User coded unlocks (not guaranteed to be quick enough to prohibit entry)
 * Optionally perform HH Actions for manual/keyed unlock, using either the default action or a specific action for Manual/Keyed
