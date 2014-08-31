@@ -30,9 +30,9 @@ The "Max # of Users" defines how many users can be entered. This means that only
 
 Your Distress Signal code ID has to be in the range of 1-Max Users; setting it outside the range won't allow you to edit the distress signal options.
 
-Note that if you set this app to "Set for specific modes?", the apps doesn't even get run for any modes you don't select.
+Note that if you set this app to "Set for specific modes?", the app doesn't even get run for any modes you don't select.
 
-My perticular Schlage lock has some kind of installation problem, since it reports "unknown" when unlocking with the key. The internal error is actually reporting "jammed", even though the lock operates fine. Thus I've added a work-around - this should not introduce any risks for locks that work fine, and it has the side benefit of resetting the lock back to a known state (useful, since the ST dashboard doesn't display locks that are in an "unknown" state).
+My particular Schlage lock has some kind of installation problem, since it reports "unknown" when unlocking with the key. The internal error is actually reporting "jammed", even though the lock operates fine. Thus I've added a work-around - this should not introduce any risks for locks that work fine, and it has the side benefit of resetting the lock back to a known state (useful, since the ST dashboard doesn't display locks that are in an "unknown" state).
 
 I hope that this app meets your needs, but if you have any problems/suggestions, please leave me a note on the SmartThings Community pages.
 
