@@ -26,7 +26,7 @@ If you have multiple locks, you should be able to run multiple instances of this
 
 Auto-lock is a bit controvesial and definitively not guaranteed to happen in time to prevent entry. I added it as a means to disable a code that you want to prevent entry with - say if you change cleaning people but haven't had the chance to change the code yet. Use at your own risk - no promises!
 
-The "Max # of Users" defines how many users can be entered. This means that only code ID#'s 1-Max Users will be enabled in the preferences screens. Not that this does NOT preven use of codes higher than Max Users, you just can't register names for them. To have those codes (as well as any blank ones in preferences) also run the Hello Home actions, you need to turn on the Allow Unspecified Code IDs toggle.
+The "Max # of Users" defines how many users can be entered. This means that only code ID#'s 1-Max Users will be enabled in the preferences screens. Note that this does NOT prevent use of codes higher than Max Users, you just can't register names for them. To have those codes (as well as any blank ones in preferences) also run the Hello Home actions, you need to turn on the Allow Unspecified Code IDs toggle.
 
 Your Distress Signal code ID has to be in the range of 1-Max Users; setting it outside the range won't allow you to edit the distress signal options.
 
