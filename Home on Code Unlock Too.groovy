@@ -231,9 +231,13 @@ def doorHandler(evt)
                 return 
             }
             
-            sendNotificationEvent("Running \"${settings.awayPhrase}\" because ${state.lastUser} locked ${lock1.displayName} and nobody else is at home.")
-            state.lastUser = ""
-            location.helloHome.execute(settings.awayPhrase)
+            if (location.mode == "Away") { return } 			// door is probably being locked after everyone left
+            
+            if (state.lastUser != "") {							// shouldn't ever have a "" lastUser...
+            	sendNotificationEvent("Running \"${settings.awayPhrase}\" because ${state.lastUser} locked ${lock1.displayName} and nobody else is at home.")
+            	state.lastUser = ""
+            	location.helloHome.execute(settings.awayPhrase)
+            }
         }
         else if (evt.value == "unknown") {						// Happens in testing sometimes
             if (state.lastLockStatus == "locked" ) {			// "probably" was a Keyed unlock attempt
