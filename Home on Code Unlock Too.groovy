@@ -7,6 +7,8 @@
  *		2014/08/28		Added keyed unlock support, optionally with separate Hello Home! action
  *						Don't run Hello Home! Actions if any specified people are present (fix presence handling also)
  *		2014/08/31		Fixed a typo, added options to send distress/Mayday via SMS, Push and/or NotificationEvent
+ * 		2014/09/12		Don't run the "lock" actions if the house is already away (ie, ignore door being locked by the
+ * 						Hello Home "Goodbye" action)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
