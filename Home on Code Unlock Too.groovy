@@ -39,8 +39,8 @@ preferences {
 }
 
 def setupApp() {
-    dynamicPage(name: "setupApp", title: "Configure your code and phrases.", install: false, uninstall: true, nextPage: "usersPage") {	
-    
+    dynamicPage(name: "setupApp", title: "Configure your code and phrases.", install: false, uninstall: true, nextPage: "usersPage") {
+
 		section("What Lock?") {
 			input "lock1","capability.lock", title: "Lock"
     	}
@@ -73,7 +73,19 @@ def setupApp() {
     				input name: "distressMsg", type: "string", title: "Message to send", defaultValue: "Mayday! at ${location.name} - ${lock1.displayName}"
                 }
             }
-		} 
+		}
+		
+		section("Smart Alarm integration") {
+			input name: "linkWithSmartAlarm", type: "bool", title: "Link with Smart Alarm?", default: false, refreshAfterSelection
+			if (linkWithSmartAlarm) {
+					input name: "saRestEndPoint" title: "Smart Alarm's restEndPoint", type: "text", required: true
+					input name: "saAccessToken", title: "Smart Alarm's accessToken", type: "text", required: true
+					paragraph ""
+					input name: "alarmOnMayday", type: "bool", title: "Alarm on Distress Entry?", default: true
+					input name: "disarmOnEntry", type: "bool", title: "Disarm on door unlock?", default: false
+					input name: "armOnExit", type: "bool", title: "Arm on door lock?", default: false
+			}
+		}
             
     	def phrases = location.helloHome?.getPhrases()*.label
     	if (phrases) {
