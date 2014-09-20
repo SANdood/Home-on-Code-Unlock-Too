@@ -9,6 +9,7 @@
  *		2014/08/31		Fixed a typo, added options to send distress/Mayday via SMS, Push and/or NotificationEvent
  * 		2014/09/12		Don't run the "lock" actions if the house is already away (ie, ignore door being locked by the
  * 						Hello Home "Goodbye" action)
+ * 		2014/09/20		Changed app icon
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -26,8 +27,8 @@ definition(
     author: "Barry A. Burke",
     description: "Change Hello, Home! mode when door is unlocked with a code. Optionally identify the person, send distress message, and/or return to Away mode on departure.",
     category: "Mode Magic",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/ModeMagic/Cat-ModeMagic.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/ModeMagic/Cat-ModeMagic@2x.png"
+    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/App-LightUpMyWorld.png",
+    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/App-LightUpMyWorld@2x.png"
 )
 
 import groovy.json.JsonSlurper
