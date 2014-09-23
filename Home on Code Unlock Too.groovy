@@ -101,8 +101,8 @@ def setupApp() {
 		}
 		
 		section("Notifications") {
-			input name: "hhNotify", title: "Hello, Home notification ONLY", type: "bool", defaultValue: true, refreshAfterSelection: true
-			if (!hhNotify) {
+			input name: "hhNotifyOnly", title: "Hello, Home notification ONLY", type: "bool", defaultValue: true, refreshAfterSelection: true
+			if (!hhNotifyOnly) {
 				input name: "stPush", title: "Send Push notification", type: "bool", defaultValue: false
 				if (phone1) {
 					input name: "stSMS", title: "Send SMS notification to:", type: "phone", defaultValue: "${phone1}"
