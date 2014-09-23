@@ -10,6 +10,7 @@
  * 		2014/09/12		Don't run the "lock" actions if the house is already away (ie, ignore door being locked by the
  * 						Hello Home "Goodbye" action)
  * 		2014/09/20		Changed app icon
+ * 		2014/09/23		Added sendPush() and sendSMS() options
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -75,29 +76,43 @@ def setupApp() {
             }
 		}
 		
-		section("Smart Alarm integration") {
-			input name: "linkWithSmartAlarm", type: "bool", title: "Link with Smart Alarm?", default: false, refreshAfterSelection
-			if (linkWithSmartAlarm) {
-					input name: "saRestEndPoint" title: "Smart Alarm's restEndPoint", type: "text", required: true
-					input name: "saAccessToken", title: "Smart Alarm's accessToken", type: "text", required: true
-					paragraph ""
-					input name: "alarmOnMayday", type: "bool", title: "Alarm on Distress Entry?", default: true
-					input name: "disarmOnEntry", type: "bool", title: "Disarm on door unlock?", default: false
-					input name: "armOnExit", type: "bool", title: "Arm on door lock?", default: false
-			}
-		}
+//		section("Smart Alarm integration") {
+//			input name: "linkWithSmartAlarm", type: "bool", title: "Link with Smart Alarm?", defaulValuet: false, refreshAfterSelection
+//			if (linkWithSmartAlarm) {
+//					input name: "saRestEndPoint" title: "Smart Alarm's restEndPoint", type: "text", required: true
+//					input name: "saAccessToken", title: "Smart Alarm's accessToken", type: "text", required: true
+//					paragraph ""
+//					input name: "alarmOnMayday", type: "bool", title: "Alarm on Distress Entry?", defaultValue: true
+//					input name: "disarmOnEntry", type: "bool", title: "Disarm on door unlock?", defaultValue: false
+//					input name: "armOnExit", type: "bool", title: "Arm on door lock?", defaultValue: false
+//			}
+//		}
             
     	def phrases = location.helloHome?.getPhrases()*.label
     	if (phrases) {
        		phrases.sort()
 			section("Hello Home actions...") {
-				input "homePhrase", "enum", title: "Coded Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection:true
+				input name: "homePhrase", type: "enum", title: "Coded Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection: true
                 if (manualUnlockException) {
-                	input "manualPhrase", "enum", title: "Manual/Keyed Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection:true
+                	input name: "manualPhrase", type: "enum", title: "Manual/Keyed Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection: true
                 }
-				input "awayPhrase", "enum", title: "Away Mode Phrase", defaultValue: "Goodbye!", required: true, options: phrases, refreshAfterSelection:true
+				input name: "awayPhrase", type: "enum", title: "Away Mode Phrase", defaultValue: "Goodbye!", required: true, options: phrases, refreshAfterSelection: true
         	}        
 		}
+		
+		section("Notifications") {
+			input name: "hhNotify", title: "Hello, Home notification ONLY", type: "bool", defaultValue: true, refreshAfterSelection: true
+			if (!hhNotify) {
+				input name: "stPush", title: "Send Push notification", type: "bool", defaultValue: false
+				if (phone1) {
+					input name: "stSMS", title: "Send SMS notification to:", type: "phone", defaultValue: "${phone1}"
+				}
+				else {
+					input name: "stSMS", title: "Send SMS notification to:", type: "phone"
+				}
+			}	
+		}
+		
         section([mobileOnly:true]) {
 			label title: "Assign a name for this SmartApp", required: false
 			mode title: "Set for specific mode(s)", required: false
@@ -177,12 +192,12 @@ def doorHandler(evt)
                     
                     if (manualUnlockException) {
                     	log.debug "${lock1.displayName} was manually unlocked - Someone is Home!"
-    	    			sendNotificationEvent("Running \"${settings.manualPhrase}\" because ${lock1.displayName} was manually unlocked by someone.")
+    	    			notify("Running \"${settings.manualPhrase}\" because ${lock1.displayName} was manually unlocked by someone.")
 						location.helloHome.execute(settings.manualPhrase)
                     }
                     else {
                     	log.debug "${lock1.displayName} was manually unlocked - Someone is Home!"
-    	    			sendNotificationEvent("Running \"${settings.homePhrase}\" because ${lock1.displayName} was manually unlocked by someone.")
+    	    			notify("Running \"${settings.homePhrase}\" because ${lock1.displayName} was manually unlocked by someone.")
 						location.helloHome.execute(settings.homePhrase)
                     }
                     state.lastUser = "Someone"
@@ -218,7 +233,7 @@ def doorHandler(evt)
             		}
                     
 		        	log.debug "Unlocked with code ${data.usedCode} - ${foundUser} is Home!"
-    	    		sendNotificationEvent("Running \"${settings.homePhrase}\" because ${foundUser} unlocked ${lock1.displayName}.")
+    	    		notify("Running \"${settings.homePhrase}\" because ${foundUser} unlocked ${lock1.displayName}.")
                     state.lastUser = foundUser
 					location.helloHome.execute(settings.homePhrase)			// Wake up the house - we're HOME!!!
                 }
@@ -233,7 +248,7 @@ def doorHandler(evt)
                         lock1.lock()
                         doorMsg = doorMsg + " and auto-locking"
                     }
-                    sendNotificationEvent( doorMsg )
+                    notify( doorMsg )
                 }
 
             }
@@ -249,7 +264,7 @@ def doorHandler(evt)
             if (location.mode == "Away") { return } 			// door is probably being locked after everyone left
             
             if (state.lastUser != "") {							// shouldn't ever have a "" lastUser...
-            	sendNotificationEvent("Running \"${settings.awayPhrase}\" because ${state.lastUser} locked ${lock1.displayName} and nobody else is at home.")
+            	notify("Running \"${settings.awayPhrase}\" because ${state.lastUser} locked ${lock1.displayName} and nobody else is at home.")
             	state.lastUser = ""
             	location.helloHome.execute(settings.awayPhrase)
             }
@@ -271,6 +286,16 @@ def doorHandler(evt)
         	log.debug "Unknown event value: ${evt.value}"
         }
     }
+}
+
+private notify( msg ) {
+	if (hhNotifyOnly) { 
+    	sendNotificationEvent( msg ) 
+    }
+	else {
+		if (stPush) { sendPush( msg ) }			// Note: BOTH will also send to Hello, Home log
+		if (stSMS) { sendSMS( stSMS, msg ) }
+	}
 }
 
 private anyoneIsHome() {    
