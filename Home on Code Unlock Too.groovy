@@ -294,7 +294,7 @@ private notify( msg ) {
     }
 	else {
 		if (stPush) { sendPush( msg ) }			// Note: BOTH will also send to Hello, Home log
-		if (stSMS) { sendSMS( stSMS, msg ) }
+		if (stSMS) { sendSms( stSMS, msg ) }
 	}
 }
 
