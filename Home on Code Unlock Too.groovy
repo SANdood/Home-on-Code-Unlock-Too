@@ -11,6 +11,7 @@
  * 						Hello Home "Goodbye" action)
  * 		2014/09/20		Changed app icon
  * 		2014/09/23		Added sendPush() and sendSMS() options
+ *		2014/09/26		Fixes silent crash caused by SendSms typo
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
