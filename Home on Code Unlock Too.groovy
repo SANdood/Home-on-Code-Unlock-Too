@@ -4,14 +4,15 @@
  *  Copyright 2014 Barry A. Burke
  * 
  *  Changelog
- *		2014/08/28		Added keyed unlock support, optionally with separate Hello Home! action
- *						Don't run Hello Home! Actions if any specified people are present (fix presence handling also)
- *		2014/08/31		Fixed a typo, added options to send distress/Mayday via SMS, Push and/or NotificationEvent
+ *		2014/12/05		(RBoy) Changed running Hello and Goodbye phrases to optional (more flexibility)
+ *		2014/09/26		Fixes silent crash caused by SendSms typo
+ * 		2014/09/23		Added sendPush() and sendSMS() options
+ * 		2014/09/20		Changed app icon
  * 		2014/09/12		Don't run the "lock" actions if the house is already away (ie, ignore door being locked by the
  * 						Hello Home "Goodbye" action)
- * 		2014/09/20		Changed app icon
- * 		2014/09/23		Added sendPush() and sendSMS() options
- *		2014/09/26		Fixes silent crash caused by SendSms typo
+ *		2014/08/31		Fixed a typo, added options to send distress/Mayday via SMS, Push and/or NotificationEvent
+ *		2014/08/28		Added keyed unlock support, optionally with separate Hello Home! action
+ *						Don't run Hello Home! Actions if any specified people are present (fix presence handling also)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -27,7 +28,7 @@ definition(
     name: "Home on Code Unlock Too",
     namespace: "smartthings",
     author: "Barry A. Burke",
-    description: "Change Hello, Home! mode when door is unlocked with a code. Optionally identify the person, send distress message, and/or return to Away mode on departure.",
+    description: "Change mode and/or notify when door is unlocked or locked. Optionally identify the person, send distress message, and/or return to Away mode on departure.",
     category: "Mode Magic",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/App-LightUpMyWorld.png",
     iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/App-LightUpMyWorld@2x.png"
@@ -41,7 +42,7 @@ preferences {
 }
 
 def setupApp() {
-    dynamicPage(name: "setupApp", title: "Configure your code and phrases.", install: false, uninstall: true, nextPage: "usersPage") {
+    dynamicPage(name: "setupApp", title: "Controls and Phrases.", install: false, uninstall: true, nextPage: "usersPage") {
 
 		section("What Lock?") {
 			input "lock1","capability.lock", title: "Lock"
@@ -93,16 +94,16 @@ def setupApp() {
     	if (phrases) {
        		phrases.sort()
 			section("Hello Home actions...") {
-				input name: "homePhrase", type: "enum", title: "Coded Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection: true
+				input name: "homePhrase", type: "enum", title: "Home Mode Phrase", required: false, options: phrases, refreshAfterSelection: true
                 if (manualUnlockException) {
-                	input name: "manualPhrase", type: "enum", title: "Manual/Keyed Home Mode Phrase", defaultValue: "I'm Back!", required: true, options: phrases, refreshAfterSelection: true
+                	input name: "manualPhrase", type: "enum", title: "Manual/Keyed Home Mode Phrase", required: false, options: phrases, refreshAfterSelection: true
                 }
-				input name: "awayPhrase", type: "enum", title: "Away Mode Phrase", defaultValue: "Goodbye!", required: true, options: phrases, refreshAfterSelection: true
-        	}        
+				input name: "awayPhrase", type: "enum", title: "Away Mode Phrase", required: false, options: phrases, refreshAfterSelection: true
+        	}           
 		}
 		
 		section("Notifications") {
-			input name: "hhNotifyOnly", title: "Hello, Home notification ONLY", type: "bool", defaultValue: true, refreshAfterSelection: true
+			input name: "hhNotifyOnly", title: "Push notifications ONLY", type: "bool", defaultValue: true, refreshAfterSelection: true
 			if (!hhNotifyOnly) {
 				input name: "stPush", title: "Send Push notification", type: "bool", defaultValue: false
 				if (phone1) {
@@ -122,17 +123,24 @@ def setupApp() {
 }
 
 def usersPage() {
-	dynamicPage(name:"usersPage", title: "User / Code List", uninstall: true, install: true) {
+	dynamicPage(name:"usersPage", title: "User Code Maintenance", uninstall: true, install: true) {
     
-		section("User Names/Identifiers (1-${maxUserNames})") {
-        	for (int i = 1; i <= settings.maxUserNames; i++) {
-            	def priorName = settings."userNames${i}"
-            	if (priorName) {
-                	input name: "userNames${i}", description: "${priorName}", title: "Code ID#$i Name", defaultValue: "${priorName}", type: string, multiple: false, required: false
-				}
-                else {
-					input name: "userNames${i}", description: "Tap to set", title: "Code ID#$i Name", type: string, multiple: false, required: false
-                }
+//		section("User Names/Identifiers (1-${maxUserNames})") {
+    for (int i = 1; i <= settings.maxUserNames; i++) {
+    	section("Code #${i}") {
+            def priorName = settings."userNames${i}"
+            if (priorName) {
+               	input name: "userNames${i}", description: "${priorName}", title: "Name", defaultValue: "${priorName}", type: "text", multiple: false, required: false
+			}
+            else {
+				input name: "userNames${i}", description: "Tap to set", title: " Name", type: "text", multiple: false, required: false
+            }
+            def priorCode = settings."userCodes${i}"
+            if (priorCode) {
+             	input code: "userCodes${i}", description: "${priorCode}", title: "Code", defaultValue: "${priorCode", type: "number", multiple: false, required: false
+            }
+            else {
+              	input code: "userCodes${i}", description: "Tap to set", title: "Code", type: "number", multiple: false, required: false
             }
         }       
 	} 
@@ -153,12 +161,22 @@ def updated() {
 
 def initialize()
 {
-    log.debug "Settings: ${settings}"
+    log.trace "Settings: ${settings}"
     subscribe(lock1, "lock", doorHandler)
     state.lastUser = ""
     state.lastLockStatus = lock1.latestValue('lock')
+    
+    log.info "Resetting user codes for ${lock1}"
+    for (int i = 1; i <= settings.maxUserNames; i++) {
+	   	newCode = settings."userCodes${i}"
+    	if (newCode) {
+    		setLockCode(i, newCode)
+    	}
+//    	else {
+//    		deleteLockCode(i)
+//    	}
+    }
 }
-
 
 def doorHandler(evt)
 {
@@ -289,6 +307,8 @@ def doorHandler(evt)
     }
 }
 
+
+
 private notify( msg ) {
 	if (hhNotifyOnly) { 
     	sendNotificationEvent( msg ) 
@@ -298,6 +318,20 @@ private notify( msg ) {
 		if (stSMS) { sendSms( stSMS, msg ) }
 	}
 }
+
+private setLockCode(index, code) {
+	lock1.setCode(index, code)
+    def msg = "$lock1 added user $index, code: $code"
+    log.info msg
+    notify( msg )
+}
+
+private deleteLockCode(index) {
+	lock1.deleteCode(index)
+	def msg = "$lock1 removed user $index"
+	log.info msg
+}
+
 
 private anyoneIsHome() {    
 	def result = false
