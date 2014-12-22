@@ -137,7 +137,7 @@ def usersPage() {
             }
             def priorCode = settings."userCodes${i}"
             if (priorCode) {
-             	input code: "userCodes${i}", description: "${priorCode}", title: "Code", defaultValue: "${priorCode", type: "number", multiple: false, required: false
+             	input code: "userCodes${i}", description: "${priorCode}", title: "Code", defaultValue: "${priorCode}", type: "number", multiple: false, required: false
             }
             else {
               	input code: "userCodes${i}", description: "Tap to set", title: "Code", type: "number", multiple: false, required: false
