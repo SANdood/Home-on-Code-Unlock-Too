@@ -6,7 +6,7 @@
  *  Changelog
  * 		2014/12/23		Fixed typos for new code programming
  * 		2014/12/20		Added ability to program codes as well (Not working on my Schlage, however). Delete is 
- * 					intentionally disabled for now.
+ * 						intentionally disabled for now.
  *		2014/12/05		(RBoy) Changed running Hello and Goodbye phrases to optional (more flexibility)
  *		2014/09/26		Fixes silent crash caused by SendSms typo
  * 		2014/09/23		Added sendPush() and sendSMS() options
@@ -128,23 +128,23 @@ def setupApp() {
 def usersPage() {
 	dynamicPage(name:"usersPage", title: "User Code Maintenance", uninstall: true, install: true) {
     
-//		section("User Names/Identifiers (1-${maxUserNames})") {
-    for (int i = 1; i <= settings.maxUserNames; i++) {
-    	section("Code #${i}") {
-            def priorName = settings."userNames${i}"
-            if (priorName) {
-               	input name: "userNames${i}", description: "${priorName}", title: "Name", defaultValue: "${priorName}", type: "text", multiple: false, required: false
-			}
-            else {
-				input name: "userNames${i}", description: "Tap to set", title: " Name", type: "text", multiple: false, required: false
-            }
-            def priorCode = settings."userCodes${i}"
-            if (priorCode) {
-             	input name: "userCodes${i}", description: "${priorCode}", title: "Code", defaultValue: "${priorCode}", type: "number", multiple: false, required: false
-            }
-            else {
-              	input name: "userCodes${i}", description: "Tap to set", title: "Code", type: "number", multiple: false, required: false
-            }
+	    for (int i = 1; i <= settings.maxUserNames; i++) {
+    		section("Code #${i}") {
+        	    def priorName = settings."userNames${i}"
+            	if (priorName) {
+               		input name: "userNames${i}", description: "${priorName}", title: "Name", defaultValue: "${priorName}", type: "text", multiple: false, required: false
+				}
+        	    else {
+					input name: "userNames${i}", description: "Tap to set", title: " Name", type: "text", multiple: false, required: false
+            	}
+	            def priorCode = settings."userCodes${i}"
+    	        if (priorCode) {
+        	     	input name: "userCodes${i}", description: "${priorCode}", title: "Code", defaultValue: "${priorCode}", type: "number", multiple: false, required: false
+            	}
+	            else {
+    	          	input name: "userCodes${i}", description: "Tap to set", title: "Code", type: "number", multiple: false, required: false
+        	    }
+    		}
         }       
 	} 
 }
