@@ -169,9 +169,9 @@ def initialize()
     state.lastUser = ""
     state.lastLockStatus = lock1.latestValue('lock')
     
-    log.info "Resetting user codes for ${lock1}"
+    log.info "Setting Lock Codes on ${lock1}"
     for (int i = 1; i <= settings.maxUserNames; i++) {
-	   	newCode = settings."userCodes${i}"
+	   	def newCode = settings."userCodes${i}"
     	if (newCode) {
     		setLockCode(i, newCode)
     	}
